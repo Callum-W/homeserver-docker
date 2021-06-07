@@ -1,0 +1,47 @@
+version: "3.7"
+
+#GITHUB=https://github.com/portainer/portainer
+#DOCKERHUB=https://hub.docker.com/r/portainer/portainer-ce
+#DOCUMENTATION=https://documentation.portainer.io/
+
+networks:
+  t2_proxy:
+    external:
+      name: t2_proxy
+  default:
+    driver: bridge
+
+services:
+  portainer:
+    image: portainer/portainer-ce:2.5.1
+    container_name: Portainer
+    restart: always
+    privileged: true
+    command: -H unix:///var/run/docker.sock
+    security_opt:
+      - no-new-privileges=true
+    cap_add:
+      - NET_ADMIN
+    networks:
+      - t2_proxy
+    ports:
+      - "$PORTAINER_PORT_1:$PORTAINER_PORT_1"
+      - "$PORTAINER_PORT_2:$PORTAINER_PORT_2"
+    volumes:
+      - $DOCKER_DIR/portainer/app:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - TZ=$TZ
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.portainer-rtr.entrypoints=https"
+      - "traefik.http.routers.portainer-rtr.rule=Host(`portainer.$DOMAINNAME`)"
+      - "traefik.http.routers.portainer-rtr.tls=true"
+      ## Middlewares
+      # - "traefik.http.routers.portainer-rtr.middlewares=chain-no-auth@file" # No Authentication
+      # - "traefik.http.routers.portainer-rtr.middlewares=chain-basic-auth@file" # Basic Authentication
+      - "traefik.http.routers.portainer-rtr.middlewares=chain-authelia@file" # 2FA Authelia
+      ## HTTP Services
+      - "traefik.http.routers.portainer-rtr.service=portainer-svc"
+      - "traefik.http.services.portainer-svc.loadbalancer.server.port=$PORTAINER_PORT_2"

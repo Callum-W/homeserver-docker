@@ -1,0 +1,42 @@
+version: "2.1"
+
+#GITHUB=https://github.com/linuxserver/docker-nzbhydra2
+#DOCKERHUB=https://hub.docker.com/r/linuxserver/nzbhydra2
+
+networks:
+  t2_proxy:
+    external:
+      name: t2_proxy
+  default:
+    driver: bridge
+
+services:
+  nzbhydra2:
+    image: linuxserver/nzbhydra2:version-v3.14.2
+    container_name: NZBHydra-2
+    networks:
+      - t2_proxy
+    restart: always
+    environment:
+      - PUID=$PUID
+      - PGID=$PGID
+      - TZ=$TZ
+      # - UMASK=022 #optional (Default = 022)
+    volumes:
+      - "$DOCKER_DIR/nzbhydra/app:/config"
+      - "$MEDIA_DIR/Downloads:/downloads"
+    ports:
+      - "$NZBHYDRA_PORT:$NZBHYDRA_PORT"
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.nzbhydra-rtr.entrypoints=https"
+      - "traefik.http.routers.nzbhydra-rtr.rule=Host(`nzbhydra.$DOMAINNAME`)"
+      - "traefik.http.routers.nzbhydra-rtr.tls=true"
+      ## Middlewares
+      # - "traefik.http.routers.nzbhydra-rtr.middlewares=chain-no-auth@file" # No Authentication
+      # - "traefik.http.routers.nzbhydra-rtr.middlewares=chain-basic-auth@file" # Basic Authentication
+      - "traefik.http.routers.nzbhydra-rtr.middlewares=chain-authelia@file" # 2FA Authelia
+      ## HTTP Services
+      - "traefik.http.routers.nzbhydra-rtr.service=nzbhydra-svc"
+      - "traefik.http.services.nzbhydra-svc.loadbalancer.server.port=$NZBHYDRA_PORT"

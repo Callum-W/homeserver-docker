@@ -1,0 +1,44 @@
+---
+version: "2.1"
+
+#GITHUB=https://hub.docker.com/r/linuxserver/lidarr
+#DOCKERHUB=https://hub.docker.com/r/linuxserver/lidarr
+
+networks:
+  t2_proxy:
+    external:
+      name: t2_proxy
+  default:
+    driver: bridge
+
+services:
+  lidarr:
+    image: linuxserver/lidarr:version-0.8.1.2135
+    container_name: Lidarr
+    networks:
+      - t2_proxy
+    # network_mode: bridge
+    restart: always
+    environment:
+     - PUID=$PUID
+     - PGID=$PGID
+     - TZ=$TZ
+     - UMASK=022 #optional (Default = 022)
+    volumes:
+      - $DOCKER_DIR/lidarr/app:/config
+      - $MEDIA_DIR/data:/data
+    ports:
+      - $LIDARR_PORT:$LIDARR_PORT
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.lidarr-rtr.entrypoints=https"
+      - "traefik.http.routers.lidarr-rtr.rule=Host(`lidarr.$DOMAINNAME`)"
+      - "traefik.http.routers.lidarr-rtr.tls=true"
+      ## Middlewares
+      # - "traefik.http.routers.lidarr-rtr.middlewares=chain-no-auth@file" # No Authentication
+      # - "traefik.http.routers.lidarr-rtr.middlewares=chain-basic-auth@file" # Basic Authentication
+      - "traefik.http.routers.lidarr-rtr.middlewares=chain-authelia@file" # 2FA Authelia
+      ## HTTP Services
+      - "traefik.http.routers.lidarr-rtr.service=lidarr-svc"
+      - "traefik.http.services.lidarr-svc.loadbalancer.server.port=$LIDARR_PORT"

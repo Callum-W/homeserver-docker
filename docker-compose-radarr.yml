@@ -1,0 +1,46 @@
+version: "2.1"
+
+#GITHUB=https://github.com/linuxserver/docker-radarr
+#DOCKERHUB=https://hub.docker.com/r/linuxserver/radarr
+#DOCUMENTATION=https://documentation.portainer.io/
+
+networks:
+  t2_proxy:
+    external:
+      name: t2_proxy
+  default:
+    driver: bridge
+
+services:
+  radarr:
+    image: linuxserver/radarr:3.2.2.5080-ls105
+    container_name: Radarr
+    restart: always
+    networks:
+      - t2_proxy
+    environment:
+      - PUID=$PUID
+      - PGID=$PGID
+      - TZ=$TZ
+    volumes:
+      - $DOCKER_DIR/radarr/app:/config
+      - $MEDIA_DIR/data:/data
+      # - $MEDIA_DIR/Downloads:/downloads
+      # - $MEDIA_DIR/Movies:/movies
+      # - $MEDIA_DIR/Animated Movies:/cartoon-anime-movies
+      # - $MEDIA_DIR/Kids Movies:/kids-movies
+    ports:
+      - "$RADARR_PORT:$RADARR_PORT"
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.radarr-rtr.entrypoints=https"
+      - "traefik.http.routers.radarr-rtr.rule=Host(`radarr.$DOMAINNAME`)"
+      - "traefik.http.routers.radarr-rtr.tls=true"
+      ## Middlewares
+      # - "traefik.http.routers.radarr-rtr.middlewares=chain-no-auth@file" # No Authentication
+      # - "traefik.http.routers.radarr-rtr.middlewares=chain-basic-auth@file" # Basic Authentication
+      - "traefik.http.routers.radarr-rtr.middlewares=chain-authelia@file" # 2FA Authelia
+      ## HTTP Services
+      - "traefik.http.routers.radarr-rtr.service=radarr-svc"
+      - "traefik.http.services.radarr-svc.loadbalancer.server.port=$RADARR_PORT"

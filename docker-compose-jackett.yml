@@ -1,0 +1,45 @@
+version: "2.1"
+
+#GITHUB=https://github.com/linuxserver/docker-jackett
+#DOCKERHUB=https://hub.docker.com/r/linuxserver/jackett
+
+networks:
+  t2_proxy:
+    external:
+      name: t2_proxy
+  default:
+    driver: bridge
+
+services:
+  jackett:
+    image: linuxserver/jackett:version-v0.18.255
+    restart: always
+    container_name: Jackett
+    # network_mode: bridge
+    networks:
+      - t2_proxy
+    environment:
+      - PUID=$PUID
+      - PGID=$PGID
+      - TZ=$TZ
+      # - AUTO_UPDATE=true #optional
+      # - RUN_OPTS=<run options here> #optional
+      # - UMASK=022 #optional (Default = 022)
+    volumes:
+      - "$DOCKER_DIR/jackett/app:/config"
+      - "$MEDIA_DIR/Downloads:/downloads"
+    ports:
+      - "$JACKETT_PORT:$JACKETT_PORT"
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.jackett-rtr.entrypoints=https"
+      - "traefik.http.routers.jackett-rtr.rule=Host(`jackett.$DOMAINNAME`, `www.jackett.$DOMAINNAME`)"
+      - "traefik.http.routers.jackett-rtr.tls=true"
+      ## Middlewares
+      # - "traefik.http.routers.jackett-rtr.middlewares=chain-no-auth@file" # No Authentication
+      # - "traefik.http.routers.jackett-rtr.middlewares=chain-basic-auth@file" # Basic Authentication
+      - "traefik.http.routers.jackett-rtr.middlewares=chain-authelia@file" # 2FA Authelia
+      ## HTTP Services
+      - "traefik.http.routers.jackett-rtr.service=jackett-svc"
+      - "traefik.http.services.jackett-svc.loadbalancer.server.port=$JACKETT_PORT"

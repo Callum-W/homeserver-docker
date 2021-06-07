@@ -1,0 +1,42 @@
+---
+version: "2"
+
+#GITHUB=https://github.com/bastienwirtz/homer
+#DOCKERHUB=https://hub.docker.com/r/b4bz/homer
+
+networks:
+  t2_proxy:
+    external:
+      name: t2_proxy
+  default:
+    driver: bridge
+
+services:
+  homer:
+    image: b4bz/homer:21.03.2
+    container_name: Homer
+    restart: always
+    networks:
+      - t2_proxy
+    volumes:
+      - $DOCKER_DIR/homer/app:/www/assets
+    ports:
+      - $HOMER_PORT:$HOMER_PORT
+    environment:
+     - UID=$PUID
+     - GID=$PGID
+     - TZ=$TZ
+     - PORT=$HOMER_PORT
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.homer-rtr.entrypoints=https"
+      - "traefik.http.routers.homer-rtr.rule=Host(`$DOMAINNAME`, `www.$DOMAINNAME`)"
+      - "traefik.http.routers.homer-rtr.tls=true"
+      ## Middlewares
+      # - "traefik.http.routers.homer-rtr.middlewares=chain-no-auth@file" # No Authentication
+      # - "traefik.http.routers.homer-rtr.middlewares=chain-basic-auth@file" # Basic Authentication
+      - "traefik.http.routers.homer-rtr.middlewares=chain-authelia@file" # 2FA Authelia
+      ## HTTP Services
+      - "traefik.http.routers.homer-rtr.service=homer-svc"
+      - "traefik.http.services.homer-svc.loadbalancer.server.port=$HOMER_PORT"

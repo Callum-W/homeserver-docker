@@ -1,0 +1,63 @@
+version: "3.5"
+
+#GITHUB=https://github.com/MarkusMcNugen/docker-qBittorrentvpn
+#DOCKERHUB=https://hub.docker.com/r/markusmcnugen/qbittorrentvpn
+
+networks:
+  t2_proxy:
+    external:
+      name: t2_proxy
+  default:
+    driver: bridge
+
+services:
+  qbittorrent:
+    image: markusmcnugen/qbittorrentvpn:latest
+    container_name: qBittorrent-VPN
+    restart: always
+    privileged: true
+    networks:
+      - t2_proxy
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - $DOCKER_DIR/qbittorrent-vpn/app:/config
+      - $MEDIA_DIR/data/torrents:/data/torrents
+
+    ports:
+      - "$QBITTORRENT_WEB_PORT:$QBITTORRENT_WEB_PORT"
+      - "$QBITTORRENT_PORT_2:$QBITTORRENT_PORT_2"
+      - "$QBITTORRENT_PORT_2:$QBITTORRENT_PORT_2/udp"
+    environment:
+      - "VPN_ENABLED=yes"
+      - "VPN_USERNAME_FILE=/run/secrets/vpn_username"
+      - "VPN_PASSWORD_FILE=/run/secrets/vpn_password"
+      - "LAN_NETWORK=${LAN}/24"
+      - "NAME_SERVERS=1.1.1.1,1.0.0.1"
+      - "WEBUI_PORT_ENV=$QBITTORRENT_WEB_PORT"
+      - "PUID=$PUID"
+      - "PGID=$PGID"
+      - "TZ=$TZ"
+      - "UMASK=002"
+    secrets:
+      - vpn_username
+      - vpn_password
+    labels:
+      - "traefik.enable=true"
+      # HTTP Routers
+      - "traefik.http.routers.qbittorrent-rtr.entrypoints=https"
+      - "traefik.http.routers.qbittorrent-rtr.rule=Host(`downloads.$DOMAINNAME`)"
+      - "traefik.http.routers.qbittorrent-rtr.tls=true"
+      # Middlewares
+      # - "traefik.http.routers.qbittorrent-rtr.middlewares=chain-no-auth@file" # No Authentication
+      # - "traefik.http.routers.qbittorrent-rtr.middlewares=chain-basic-auth@file" # Basic Authentication
+      - "traefik.http.routers.qbittorrent-rtr.middlewares=chain-authelia@file" # 2FA Authelia
+      # HTTP Services
+      - "traefik.http.routers.qbittorrent-rtr.service=qbittorrent-svc"
+      - "traefik.http.services.qbittorrent-svc.loadbalancer.server.port=$QBITTORRENT_WEB_PORT"
+
+secrets:
+  vpn_password:
+    file: $SECRETS_DIR/vpn_username
+  vpn_username:
+    file: $SECRETS_DIR/vpn_password

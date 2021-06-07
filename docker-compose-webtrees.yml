@@ -1,0 +1,92 @@
+---
+version: '3'
+
+networks:
+  t2_proxy:
+    external:
+      name: t2_proxy
+  default:
+    driver: bridge
+
+services:
+  app:
+    image: dtjs48jkt/webtrees:v2.0.16-0
+    # image: nathanvaughn/webtrees:latest
+    container_name: WebTrees
+    restart: always
+    # network_mode: bridge
+    networks:
+      - t2_proxy
+    volumes:
+      - $DOCKER_DIR/webtrees/app:/var/www/html/data
+      - $DOCKER_DIR/webtrees/logs:/var/log/apache2
+    environment:
+      - DISABLE_SSL=TRUE  # Reverse proxy handles SSL
+      - PORT=$WEBTREES_PORT
+      - PRETTYURLS=true
+      - BASE_URL=$WEBTREES_BASEURL
+      - WEBTREES_TBL_PFX=wt_
+      - USER_ID=$PUID
+      - GROUP_ID=$PGID
+      ## Unused after initial run
+      # - SERVER_NAME=$HOSTIP:$WEBTREES_PORT
+      # - DB_NAME=
+      # - DB_USER=
+      # - DB_PASSWORD=
+      - TZ=$TZ
+    secrets:
+      - mysql_root_password
+      - mysql_database
+      - mysql_user
+      - mysql_password
+    ports:
+      - "$WEBTREES_PORT:$WEBTREES_PORT"
+    depends_on:
+      - db
+    labels:
+      - "traefik.enable=true"
+      # HTTP Routers
+      - "traefik.http.routers.webtrees-rtr.entrypoints=https"
+      - "traefik.http.routers.webtrees-rtr.rule=Host(`webtrees.$DOMAINNAME`)"
+      - "traefik.http.routers.webtrees-rtr.tls=true"
+      # Middlewares
+      # - "traefik.http.routers.webtrees-rtr.middlewares=chain-no-auth@file" # No Authentication
+      # - "traefik.http.routers.webtrees-rtr.middlewares=chain-basic-auth@file" # Basic Authentication
+      - "traefik.http.routers.webtrees-rtr.middlewares=chain-authelia@file" # 2FA Authelia
+      # HTTP Services
+      - "traefik.http.routers.webtrees-rtr.service=webtrees-svc"
+      - "traefik.http.services.webtrees-svc.loadbalancer.server.port=$WEBTREES_PORT"
+
+  db:
+    image: mariadb:10.6.1
+    container_name: WebTrees-db
+    restart: always
+    networks:
+      - t2_proxy
+    volumes:
+      - $DOCKER_DIR/webtrees/db:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD_FILE=/run/secrets/mysql_root_password
+      - MYSQL_DATABASE_FILE=/run/secrets/mysql_database
+      - MYSQL_USER_FILE=/run/secrets/mysql_user
+      - MYSQL_PASSWORD_FILE=/run/secrets/mysql_password
+      - UID=$PUID
+      - GID=$PGID
+      - TZ=$TZ
+    secrets:
+      - mysql_root_password
+      - mysql_database
+      - mysql_user
+      - mysql_password
+    ports:
+      - "$WEBTREES_DB_PORT:3306"
+
+secrets:
+  mysql_root_password:
+    file: $SECRETS_DIR/webtrees/db/webtrees_mysql_root_password
+  mysql_database:
+    file: $SECRETS_DIR/webtrees/db/webtrees_mysql_database
+  mysql_user:
+    file: $SECRETS_DIR/webtrees/db/webtrees_mysql_user
+  mysql_password:
+    file: $SECRETS_DIR/webtrees/db/webtrees_mysql_password

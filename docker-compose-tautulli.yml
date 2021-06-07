@@ -1,0 +1,39 @@
+---
+version: "2.1"
+
+networks:
+  t2_proxy:
+    external:
+      name: t2_proxy
+  default:
+    driver: bridge
+
+services:
+  tautulli:
+    image: linuxserver/tautulli:v2.7.3-ls9
+    container_name: Tautulli
+    # network_mode: bridge
+    networks:
+      - t2_proxy
+    environment:
+     - UID=$PUID
+     - GID=$PGID
+     - TZ=$TZ
+    volumes:
+      - $DOCKER_DIR/tautulli/app:/config
+    ports:
+      - $TAUTULLI_PORT:$TAUTULLI_PORT
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.tautulli-rtr.entrypoints=https"
+      - "traefik.http.routers.tautulli-rtr.rule=Host(`tautulli.$DOMAINNAME`)"
+      - "traefik.http.routers.tautulli-rtr.tls=true"
+      ## Middlewares
+      # - "traefik.http.routers.tautulli-rtr.middlewares=chain-no-auth@file" # No Authentication
+      # - "traefik.http.routers.tautulli-rtr.middlewares=chain-basic-auth@file" # Basic Authentication
+      - "traefik.http.routers.tautulli-rtr.middlewares=chain-authelia@file"
+      ## HTTP Services
+      - "traefik.http.routers.tautulli-rtr.service=tautulli-svc"
+      - "traefik.http.services.tautulli-svc.loadbalancer.server.port=$TAUTULLI_PORT"

@@ -1,0 +1,41 @@
+version: "2.1"
+
+networks:
+  t2_proxy:
+    external:
+      name: t2_proxy
+  default:
+    driver: bridge
+
+services:
+  sonarr:
+    image: linuxserver/sonarr:3.0.6.1196-ls106
+    container_name: Sonarr
+    restart: always
+    networks:
+      - t2_proxy
+    environment:
+      - PUID=$PUID
+      - PGID=$PGID
+      - TZ=$TZ
+    volumes:
+      - "$DOCKER_DIR/sonarr/app:/config"
+      - "$MEDIA_DIR/data:/data"
+      # - "$MEDIA_DIR/Downloads:/downloads"
+      # - "$MEDIA_DIR/TV Shows:/tv"
+      # - "$MEDIA_DIR/Anime:/anime"
+    ports:
+      - "$SONARR_PORT:$SONARR_PORT"
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.sonarr-rtr.entrypoints=https"
+      - "traefik.http.routers.sonarr-rtr.rule=Host(`sonarr.$DOMAINNAME`)"
+      - "traefik.http.routers.sonarr-rtr.tls=true"
+      ## Middlewares
+      # - "traefik.http.routers.sonarr-rtr.middlewares=chain-no-auth@file" # No Authentication
+      # - "traefik.http.routers.sonarr-rtr.middlewares=chain-basic-auth@file" # Basic Authentication
+      - "traefik.http.routers.sonarr-rtr.middlewares=chain-authelia@file" # 2FA Authelia
+      ## HTTP Services
+      - "traefik.http.routers.sonarr-rtr.service=sonarr-svc"
+      - "traefik.http.services.sonarr-svc.loadbalancer.server.port=$SONARR_PORT"

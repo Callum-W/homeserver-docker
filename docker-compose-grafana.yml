@@ -1,0 +1,43 @@
+---
+version: "3"
+
+#GITHUB=https://github.com/grafana/grafana
+#DOCKERHUB=https://hub.docker.com/r/grafana/grafana
+#CONFIGURATION=https://grafana.com/docs/grafana/latest/installation/docker/
+
+networks:
+  t2_proxy:
+    external:
+      name: t2_proxy
+  default:
+    driver: bridge
+
+services:
+  app:
+    image: grafana/grafana:7.5.7
+    container_name: Grafana
+    restart: always
+    networks:
+      - t2_proxy
+    volumes:
+      - $DOCKER_DIR/grafana/app:/var/lib/grafana
+    ports:
+      - $GRAFANA_PORT:$GRAFANA_PORT
+    environment:
+      - UID=$PUID
+      - GID=$PGID
+      - TZ=$TZ
+    user: "472"
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.grafana-rtr.entrypoints=https"
+      - "traefik.http.routers.grafana-rtr.rule=Host(`grafana.$DOMAINNAME`)"
+      - "traefik.http.routers.grafana-rtr.tls=true"
+      ## Middlewares
+      # - "traefik.http.routers.grafana-rtr.middlewares=chain-no-auth@file" # No Authentication
+      # - "traefik.http.routers.grafana-rtr.middlewares=chain-basic-auth@file" # Basic Authentication
+      - "traefik.http.routers.grafana-rtr.middlewares=chain-authelia@file" # 2FA Authelia
+      ## HTTP Services
+      - "traefik.http.routers.grafana-rtr.service=grafana-svc"
+      - "traefik.http.services.grafana-svc.loadbalancer.server.port=$GRAFANA_PORT"

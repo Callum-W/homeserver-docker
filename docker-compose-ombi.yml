@@ -1,0 +1,43 @@
+---
+version: "2.1"
+
+#GITHUB=https://github.com/linuxserver/docker-ombi
+#DOCKERHUB=https://hub.docker.com/r/linuxserver/ombi
+
+networks:
+  t2_proxy:
+    external:
+      name: t2_proxy
+  default:
+    driver: bridge
+
+services:
+  ombi:
+    image: linuxserver/ombi:v4.0.1342-ls94
+    container_name: Ombi
+    networks:
+      - t2_proxy
+    volumes:
+      - $DOCKER_DIR/ombi/app:/config
+    ports:
+      - $OMBI_PORT:$OMBI_PORT
+    environment:
+      - UID=$PUID
+      - GID=$PGID
+      - TZ=$TZ
+      # - BASE_URL=/ombi #optional
+      # - UMASK=022 #optional (Default = 022)
+    restart: always
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.ombi-rtr.entrypoints=https"
+      - "traefik.http.routers.ombi-rtr.rule=Host(`ombi.$DOMAINNAME`)"
+      - "traefik.http.routers.ombi-rtr.tls=true"
+      ## Middlewares
+      # - "traefik.http.routers.ombi-rtr.middlewares=chain-no-auth@file" # No Authentication
+      # - "traefik.http.routers.ombi-rtr.middlewares=chain-basic-auth@file" # Basic Authentication
+      - "traefik.http.routers.ombi-rtr.middlewares=chain-authelia@file" # 2FA Authelia
+      ## HTTP Services
+      - "traefik.http.routers.ombi-rtr.service=ombi-svc"
+      - "traefik.http.services.ombi-svc.loadbalancer.server.port=$OMBI_PORT"

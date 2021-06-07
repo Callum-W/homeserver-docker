@@ -1,0 +1,15 @@
+version: "3"
+services:
+  requestrr:
+    image: darkalfx/requestrr:v1.0.17
+    container_name: Requestrr
+    restart: always
+    network_mode: bridge
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - $DOCKER_DIR/requestrr/app:/config
+    ports:
+      - "$REQUESTRR_PORT:$REQUESTRR_PORT"
