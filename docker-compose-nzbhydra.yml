@@ -21,10 +21,10 @@ services:
       - PUID=$PUID
       - PGID=$PGID
       - TZ=$TZ
-      # - UMASK=022 #optional (Default = 022)
+      - UMASK=022 #optional (Default = 022)
     volumes:
       - "$DOCKER_DIR/nzbhydra/app:/config"
-      - "$MEDIA_DIR/Downloads:/downloads"
+      - "$MEDIA_DIR/data/torrents/magnets:/magnets"
     ports:
       - "$NZBHYDRA_PORT:$NZBHYDRA_PORT"
     labels:

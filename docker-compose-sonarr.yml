@@ -21,9 +21,6 @@ services:
     volumes:
       - "$DOCKER_DIR/sonarr/app:/config"
       - "$MEDIA_DIR/data:/data"
-      # - "$MEDIA_DIR/Downloads:/downloads"
-      # - "$MEDIA_DIR/TV Shows:/tv"
-      # - "$MEDIA_DIR/Anime:/anime"
     ports:
       - "$SONARR_PORT:$SONARR_PORT"
     labels:

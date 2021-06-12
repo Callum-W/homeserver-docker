@@ -58,6 +58,6 @@ services:
 
 secrets:
   vpn_password:
-    file: $SECRETS_DIR/vpn_username
+    file: $SECRETS_DIR/qbittorrent/vpn_username
   vpn_username:
-    file: $SECRETS_DIR/vpn_password
+    file: $SECRETS_DIR/qbittorrent/vpn_password

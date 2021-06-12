@@ -25,10 +25,6 @@ services:
     volumes:
       - $DOCKER_DIR/radarr/app:/config
       - $MEDIA_DIR/data:/data
-      # - $MEDIA_DIR/Downloads:/downloads
-      # - $MEDIA_DIR/Movies:/movies
-      # - $MEDIA_DIR/Animated Movies:/cartoon-anime-movies
-      # - $MEDIA_DIR/Kids Movies:/kids-movies
     ports:
       - "$RADARR_PORT:$RADARR_PORT"
     labels:

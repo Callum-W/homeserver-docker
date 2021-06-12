@@ -16,7 +16,7 @@ services:
   traefik:
     container_name: Traefik
     image: traefik:2.4.8
-    restart: unless-stopped
+    restart: always
     command: # CLI arguments https://doc.traefik.io/traefik/reference/static-configuration/cli/
       - --global.checkNewVersion=true
       - --global.sendAnonymousUsage=false
@@ -30,7 +30,7 @@ services:
       # - --api.insecure=true  # Activate API directly on the entryPoint named traefik. (Default: false)
       # - --serversTransport.insecureSkipVerify=true  # Disable SSL certificate verification. (Default: false)
       - --log=true
-      - --log.level=DEBUG # (Default: error) DEBUG, INFO, WARN, ERROR, FATAL, PANIC
+      - --log.level=WARN # (Default: error) DEBUG, INFO, WARN, ERROR, FATAL, PANIC
       - --accessLog=true
       - --accessLog.filePath=/traefik.log
       - --accessLog.bufferingSize=100 # Configuring a buffer of 100 lines
@@ -52,6 +52,7 @@ services:
       - --certificatesResolvers.dns-cloudflare.acme.storage=/acme.json
       - --certificatesResolvers.dns-cloudflare.acme.dnsChallenge.provider=cloudflare
       - --certificatesResolvers.dns-cloudflare.acme.dnsChallenge.resolvers=1.1.1.1:53,1.0.0.1:53
+      - --certificatesResolvers.dns-cloudflare.acme.dnsChallenge.delayBeforeCheck=90 # To delay DNS check and reduce LE hitrate
 
     networks:
       t2_proxy:
@@ -82,6 +83,11 @@ services:
       - CF_API_KEY=$CLOUDFLARE_API_KEY
     labels:
       - "traefik.enable=true"
+      # HTTP-to-HTTPS Redirect
+      - "traefik.http.routers.http-catchall.entrypoints=http"
+      - "traefik.http.routers.http-catchall.rule=HostRegexp(`{host:.+}`)"
+      - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
       # HTTP Routers
       - "traefik.http.routers.traefik-rtr.entrypoints=https"
       - "traefik.http.routers.traefik-rtr.rule=Host(`traefik.$DOMAINNAME`)"
@@ -95,30 +101,6 @@ services:
       - "traefik.http.routers.traefik-rtr.service=api@internal"
       ## Middlewares
       - "traefik.http.routers.traefik-rtr.middlewares=chain-authelia@file"
-
-      ## Security header middleware options if NOT using the 'middlewares-secure-headers@file' option
-      # - "traefik.http.middlewares.traefik-headers.headers.accesscontrolallowmethods=GET, OPTIONS, PUT"
-      # - "traefik.http.middlewares.traefik-headers.headers.accesscontrolalloworiginlist=https://$DOMAINNAME"
-      # - "traefik.http.middlewares.traefik-headers.headers.accesscontrolmaxage=100"
-      # - "traefik.http.middlewares.traefik-headers.headers.addvaryheader=true" 
-      # - "traefik.http.middlewares.traefik-headers.headers.allowedhosts=traefik.$DOMAINNAME" 
-      # - "traefik.http.middlewares.traefik-headers.headers.hostsproxyheaders=X-Forwarded-Host"
-      # - "traefik.http.middlewares.traefik-headers.headers.sslredirect=true"
-      # - "traefik.http.middlewares.traefik-headers.headers.sslhost=traefik.$DOMAINNAME" 
-      # - "traefik.http.middlewares.traefik-headers.headers.sslforcehost=true"
-      # - "traefik.http.middlewares.traefik-headers.headers.sslproxyheaders.X-Forwarded-Proto=https"
-      # - "traefik.http.middlewares.traefik-headers.headers.stsseconds=63072000"
-      # - "traefik.http.middlewares.traefik-headers.headers.stsincludesubdomains=true"
-      # - "traefik.http.middlewares.traefik-headers.headers.stspreload=true"
-      # - "traefik.http.middlewares.traefik-headers.headers.forcestsheader=true"
-      # - "traefik.http.middlewares.traefik-headers.headers.framedeny=true"
-      ## - "traefik.http.middlewares.traefik-headers.headers.customframeoptionsvalue=SAMEORIGIN" # This option overrides FrameDeny
-      # - "traefik.http.middlewares.traefik-headers.headers.contenttypenosniff=true"
-      # - "traefik.http.middlewares.traefik-headers.headers.browserxssfilter=true"
-      ## - "traefik.http.middlewares.traefik-headers.headers.contentsecuritypolicy=frame-ancestors 'none'; object-src 'none'; base-uri 'none';"
-      # - "traefik.http.middlewares.traefik-headers.headers.referrerpolicy=same-origin"
-      # - "traefik.http.middlewares.traefik-headers.headers.featurepolicy=camera 'none'; geolocation 'none'; microphone 'none'; payment 'none'; usb 'none'; vr 'none';"
-      # - "traefik.http.middlewares.traefik-headers.headers.customresponseheaders.X-Robots-Tag=none,noarchive,nosnippet,notranslate,noimageindex,"
 
   # Authelia (Lite) - Self-Hosted Single Sign-On and Two-Factor Authentication
   authelia:
@@ -162,25 +144,6 @@ services:
       - "traefik.http.routers.authelia-rtr.service=authelia-svc"
       - "traefik.http.services.authelia-svc.loadbalancer.server.port=$AUTHELIA_PORT"
       
-  # authelia-db:
-    # image: 'mariadb:latest'
-    # container_name: 'Authelia_DB'
-    # restart: always
-    # networks:
-      # - t2_proxy
-    # ports:
-      # - '$AUTHELIA_DB_PORT:3306'
-    # environment:
-      # - MYSQL_ROOT_PASSWORD_FILE=/run/secrets/authelia_mysql_root_password
-      # - MYSQL_DATABASE="authelia"
-      # - MYSQL_USER="authelia"
-      # - MYSQL_PASSWORD_FILE=/run/secrets/authelia_storage_mysql_password
-    # secrets:
-      # - authelia_mysql_root_password
-      # - authelia_storage_mysql_password
-    # volumes:
-      # - $DOCKER_DIR/authelia/db:/var/lib/mysql
-
   redis:
     image: docker.io/bitnami/redis:6.2
     container_name: Redis
